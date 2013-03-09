@@ -228,7 +228,7 @@ void prime_cookielist() {
 }
 
 long aur_upload(const char *taurball, const char *csrf_token) {
-  char *errormsg, *effective_url;
+  char *errormsg;
   char category[3], errbuffer[CURL_ERROR_SIZE] = {0};
   const char *display_name, *error_start, *error_end;
   long httpcode, ret = 1;
@@ -237,6 +237,7 @@ long aur_upload(const char *taurball, const char *csrf_token) {
   struct curl_slist *headers = NULL;
   struct write_result response = { NULL, 0 };
   struct stat st;
+  double *ul_shipped, *ul_delivered;
 
   /* make sure the resolved path is a regular file */
   if (stat(taurball, &st) != 0) {
@@ -300,16 +301,13 @@ long aur_upload(const char *taurball, const char *csrf_token) {
 
   debug("%s\n", response.memory);
 
-  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective_url);
-  if (effective_url) {
-    /* TODO: this check could probably be better. it only ensures that we've
-     * been redirected to _some_ packages page. */
-    if (strstr(effective_url, "/packages/")) {
-      printf("%s has been uploaded successfully.\n", display_name);
-      ret = 0;
-      goto cleanup;
+  curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_UPLOAD, &ul_shipped);
+  curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &ul_delivered);
+  if (ul_delivered == ul_shipped) {
+    printf("%s has been uploaded successfully.\n", display_name);
+    ret = 0;
+    goto cleanup;
     }
-  }
 
   /* failboat */
   error_start = memmem(response.memory, response.size, ERROR_STARTTAG, strlen(ERROR_STARTTAG));
